@@ -1,0 +1,18 @@
+{
+  "ankush": {
+    "name": "ankush",
+    "age": 22,
+    "sex": "male",
+    "allergies": [
+      "milk"
+    ],
+    "dietary_restrictions": [
+      "vegetarian"
+    ],
+    "severity_level": "moderate",
+    "calorie_target": 2400,
+    "protein_target": 56,
+    "fat_target": 73,
+    "carb_target": 400
+  }
+}
