@@ -3,9 +3,7 @@
     "name": "ankush",
     "age": 22,
     "sex": "male",
-    "allergies": [
-      "milk"
-    ],
+    "allergies": [],
     "dietary_restrictions": [
       "vegetarian"
     ],

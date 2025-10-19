@@ -1,26 +1,85 @@
 import streamlit as st
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing import List, Optional
 import json
 import os
-from meal_planner.meal_planner_daily import generate_meal
-from nutrients import nutrient_agent
-import time
-import re
-import streamlit as st
-import json
+import logging
 import traceback
 import time
-# Removed circular import - will import dynamically when needed
-from risk_analyzer.text_extraction import configure_gemini, extract_text_from_image
-import streamlit as st
-from recipe_generators.recipe_generator import chain, get_recipe
-from recipe_generators.image_generation import recipe_image, show_image
-from streamlit_mic_recorder import mic_recorder
-from recipe_generators.image_to_recipe import encode_image, pic_to_recipe
-from recipe_generators.voice_to_recipe import voice_to_recipe
+import re
 import tempfile
 import wave
+from contextlib import contextmanager
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('nutriwise.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Error handling decorator
+@contextmanager
+def error_handler(operation_name: str, show_error: bool = True):
+    try:
+        yield
+    except Exception as e:
+        logger.error(f"Error in {operation_name}: {str(e)}", exc_info=True)
+        if show_error:
+            st.error(f"❌ {operation_name} failed. Please try again or contact support if the issue persists.")
+            with st.expander("Technical Details", expanded=False):
+                st.code(f"Error: {str(e)}")
+        raise
+
+# Safe import function
+def safe_import(module_name: str, fallback_message: str = None):
+    try:
+        if module_name == "meal_planner":
+            from meal_planner.meal_planner_daily import generate_meal
+            return generate_meal
+        elif module_name == "nutrients":
+            from nutrients import nutrient_agent
+            return nutrient_agent
+        elif module_name == "text_extraction":
+            from risk_analyzer.text_extraction import configure_gemini, extract_text_from_image
+            return configure_gemini, extract_text_from_image
+        elif module_name == "recipe_generator":
+            from recipe_generators.recipe_generator import chain, get_recipe
+            return chain, get_recipe
+        elif module_name == "image_generation":
+            from recipe_generators.image_generation import recipe_image, show_image
+            return recipe_image, show_image
+        elif module_name == "mic_recorder":
+            from streamlit_mic_recorder import mic_recorder
+            return mic_recorder
+        elif module_name == "image_to_recipe":
+            from recipe_generators.image_to_recipe import encode_image, pic_to_recipe
+            return encode_image, pic_to_recipe
+        elif module_name == "voice_to_recipe":
+            from recipe_generators.voice_to_recipe import voice_to_recipe
+            return voice_to_recipe
+    except ImportError as e:
+        logger.error(f"Failed to import {module_name}: {str(e)}")
+        if fallback_message:
+            st.error(fallback_message)
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error importing {module_name}: {str(e)}")
+        return None
+
+# Initialize imports
+generate_meal = safe_import("meal_planner")
+nutrient_agent = safe_import("nutrients")
+configure_gemini, extract_text_from_image = safe_import("text_extraction") or (None, None)
+chain, get_recipe = safe_import("recipe_generator") or (None, None)
+recipe_image, show_image = safe_import("image_generation") or (None, None)
+mic_recorder = safe_import("mic_recorder")
+encode_image, pic_to_recipe = safe_import("image_to_recipe") or (None, None)
+voice_to_recipe = safe_import("voice_to_recipe")
 
 # Page configuration
 st.set_page_config(
@@ -147,25 +206,48 @@ class ProfileManager:
     def __init__(self, profile_file="user_profiles.json"):
         self.profile_file = profile_file
 
-    def save_profile(self, profile: UserProfile):
-        profiles = self.load_all_profiles()
-        profiles[profile.name] = profile.model_dump()  
-        with open(self.profile_file, 'w') as f:
-            json.dump(profiles, f, indent=2)
-
-
+    def save_profile(self, profile: UserProfile) -> bool:
+        try:
+            with error_handler("Profile Save", show_error=False):
+                profiles = self.load_all_profiles()
+                profiles[profile.name] = profile.model_dump()  
+                with open(self.profile_file, 'w') as f:
+                    json.dump(profiles, f, indent=2)
+                logger.info(f"Profile saved successfully for {profile.name}")
+                return True
+        except Exception as e:
+            st.error(f"❌ Failed to save profile: {str(e)}")
+            return False
 
     def load_profile(self, name: str) -> Optional[UserProfile]:
-        profiles = self.load_all_profiles()
-        if name in profiles:
-            return UserProfile(**profiles[name])
-        return None
+        try:
+            with error_handler("Profile Load", show_error=False):
+                profiles = self.load_all_profiles()
+                if name in profiles:
+                    return UserProfile(**profiles[name])
+                return None
+        except ValidationError as e:
+            st.error(f"❌ Profile data is corrupted for {name}. Please recreate the profile.")
+            logger.error(f"Profile validation error for {name}: {str(e)}")
+            return None
+        except Exception as e:
+            st.error(f"❌ Failed to load profile {name}: {str(e)}")
+            return None
     
     def load_all_profiles(self) -> dict:
-        if os.path.exists(self.profile_file):
-            with open(self.profile_file, 'r') as f:
-                return json.load(f)
-        return {}
+        try:
+            if os.path.exists(self.profile_file):
+                with open(self.profile_file, 'r') as f:
+                    data = json.load(f)
+                    return data if isinstance(data, dict) else {}
+            return {}
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error in profiles file: {str(e)}")
+            st.warning("⚠️ Profile data file is corrupted. Starting with empty profiles.")
+            return {}
+        except Exception as e:
+            logger.error(f"Error loading profiles: {str(e)}")
+            return {}
 
 def get_recommended_nutrition(age: int, sex: str) -> dict:
     """Calculate recommended daily nutrition based on age and sex"""
@@ -315,22 +397,32 @@ def render_profile_section():
         
         if st.form_submit_button("Save Profile"):
             if name:
-                all_allergies = selected_allergies + [a.strip() for a in custom_allergies.split(',') if a.strip()]
-                profile = UserProfile(
-                    name=name,
-                    age=age,
-                    sex=sex,
-                    allergies=all_allergies,
-                    dietary_restrictions=dietary_restrictions,
-                    severity_level=severity,
-                    calorie_target=calorie_target,
-                    protein_target=protein_target,
-                    fat_target=fat_target,
-                    carb_target=carb_target
-                )
-                profile_manager.save_profile(profile)
-                st.session_state.current_profile = profile
-                st.success(f"Profile saved for {name}!")
+                try:
+                    with error_handler("Profile Creation"):
+                        all_allergies = selected_allergies + [a.strip() for a in custom_allergies.split(',') if a.strip()]
+                        profile = UserProfile(
+                            name=name,
+                            age=age,
+                            sex=sex,
+                            allergies=all_allergies,
+                            dietary_restrictions=dietary_restrictions,
+                            severity_level=severity,
+                            calorie_target=calorie_target,
+                            protein_target=protein_target,
+                            fat_target=fat_target,
+                            carb_target=carb_target
+                        )
+                        if profile_manager.save_profile(profile):
+                            st.session_state.current_profile = profile
+                            st.success(f"✅ Profile saved for {name}!")
+                        else:
+                            st.error("❌ Failed to save profile. Please try again.")
+                except ValidationError as e:
+                    st.error(f"❌ Invalid profile data: {str(e)}")
+                except Exception as e:
+                    st.error(f"❌ Unexpected error creating profile: {str(e)}")
+            else:
+                st.warning("⚠️ Please enter a name for the profile.")
     
     # Display current profile
     if hasattr(st.session_state, 'current_profile') and st.session_state.current_profile:
@@ -442,60 +534,96 @@ if __name__ == "__main__":
             if not has_input:
                 st.error("❌ Please provide input using one of the methods above!")
             else:
-                with st.spinner("🔮 Creating your perfect recipe..."):
-                    
-                    # Text input
-                    if ingre_list and ingre_list.strip():
-                        st.info("📝 Processing text ingredients...")
-                        placeholder = st.empty()
-                        for chunk in chain.stream({"text_input": ingre_list}):
-                            resp += chunk.content
-                            placeholder.markdown("**Generating...** ✨")
-                        placeholder.empty()
-                    
-                    # Voice input
-                    elif audio:
-                        st.info("🎤 Processing voice recording...")
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-                            with wave.open(tmp.name, "wb") as wf:
-                                wf.setnchannels(1)
-                                wf.setsampwidth(2)
-                                wf.setframerate(16000)
-                                wf.writeframes(audio["bytes"])
-                            temp_filename = tmp.name
-                        resp = voice_to_recipe(temp_filename)
-                    
-                    # Image input
-                    elif uploaded_image:
-                        st.info("📸 Analyzing uploaded image...")
-                        base64_img = encode_image(uploaded_image)
-                        resp = pic_to_recipe(base64_img)
+                try:
+                    with st.spinner("🔮 Creating your perfect recipe..."):
+                        
+                        # Text input
+                        if ingre_list and ingre_list.strip():
+                            with error_handler("Text Recipe Generation"):
+                                if not chain:
+                                    st.error("❌ Recipe generation service unavailable")
+                                    st.stop()
+                                st.info("📝 Processing text ingredients...")
+                                placeholder = st.empty()
+                                for chunk in chain.stream({"text_input": ingre_list}):
+                                    resp += chunk.content
+                                    placeholder.markdown("**Generating...** ✨")
+                                placeholder.empty()
+                        
+                        # Voice input
+                        elif audio:
+                            with error_handler("Voice Recipe Generation"):
+                                if not voice_to_recipe:
+                                    st.error("❌ Voice processing service unavailable")
+                                    st.stop()
+                                st.info("🎤 Processing voice recording...")
+                                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+                                    with wave.open(tmp.name, "wb") as wf:
+                                        wf.setnchannels(1)
+                                        wf.setsampwidth(2)
+                                        wf.setframerate(16000)
+                                        wf.writeframes(audio["bytes"])
+                                    temp_filename = tmp.name
+                                resp = voice_to_recipe(temp_filename)
+                                # Clean up temp file
+                                try:
+                                    os.unlink(temp_filename)
+                                except:
+                                    pass
+                        
+                        # Image input
+                        elif uploaded_image:
+                            with error_handler("Image Recipe Generation"):
+                                if not encode_image or not pic_to_recipe:
+                                    st.error("❌ Image processing service unavailable")
+                                    st.stop()
+                                st.info("📸 Analyzing uploaded image...")
+                                base64_img = encode_image(uploaded_image)
+                                resp = pic_to_recipe(base64_img)
+                except Exception as e:
+                    st.error(f"❌ Recipe generation failed: {str(e)}")
+                    logger.error(f"Recipe generation error: {str(e)}", exc_info=True)
+                    resp = ""
                 
                 # Display Results
-                if resp:
-                    st.markdown('<div class="recipe-output">', unsafe_allow_html=True)
-                    
-                    recipe_name = get_recipe(resp)
-                    st.markdown(f'<div class="recipe-title">🍽️ {recipe_name}</div>', unsafe_allow_html=True)
-                    st.markdown(resp)
-                    
-                    # Only generate AI images if NOT image upload
-                    if not uploaded_image:
-                        st.markdown("### 📸 Recipe Visualization")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            try:
-                                img_query = f"generate the image of {recipe_name}"
-                                response = recipe_image(img_query)
-                                st.image(show_image(response), caption=f"AI Generated: {recipe_name}")
-                            except Exception:
-                                st.warning("⚠️ Could not generate AI image")
-                        with col2:
-                            width, height, seed, model = 1024, 1024, 42, 'nanobanana'
-                            image_url = f"https://pollinations.ai/p/{recipe_name}?width={width}&height={height}&seed={seed}&model={model}"
-                            st.image(image_url, caption=f"Alternative View: {recipe_name}")
-                    
-                    st.markdown('</div>', unsafe_allow_html=True)
+                if resp and resp.strip():
+                    try:
+                        with error_handler("Recipe Display", show_error=False):
+                            st.markdown('<div class="recipe-output">', unsafe_allow_html=True)
+                            
+                            recipe_name = get_recipe(resp) if get_recipe else "Generated Recipe"
+                            st.markdown(f'<div class="recipe-title">🍽️ {recipe_name}</div>', unsafe_allow_html=True)
+                            st.markdown(resp)
+                            
+                            # Only generate AI images if NOT image upload
+                            if not uploaded_image:
+                                st.markdown("### 📸 Recipe Visualization")
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    try:
+                                        if recipe_image and show_image:
+                                            img_query = f"generate the image of {recipe_name}"
+                                            response = recipe_image(img_query)
+                                            st.image(show_image(response), caption=f"AI Generated: {recipe_name}")
+                                        else:
+                                            st.info("🖼️ Image generation service unavailable")
+                                    except Exception as e:
+                                        st.warning("⚠️ Could not generate AI image")
+                                        logger.warning(f"Image generation failed: {str(e)}")
+                                with col2:
+                                    try:
+                                        width, height, seed, model = 1024, 1024, 42, 'nanobanana'
+                                        image_url = f"https://pollinations.ai/p/{recipe_name}?width={width}&height={height}&seed={seed}&model={model}"
+                                        st.image(image_url, caption=f"Alternative View: {recipe_name}")
+                                    except Exception as e:
+                                        st.warning("⚠️ Could not load alternative image")
+                                        logger.warning(f"Alternative image failed: {str(e)}")
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)
+                    except Exception as e:
+                        st.error(f"❌ Error displaying recipe: {str(e)}")
+                        # Still show raw response as fallback
+                        st.text_area("Raw Recipe Output", resp, height=300)
                     
                     # Download
                     st.markdown("---")
@@ -670,6 +798,9 @@ if __name__ == "__main__":
         try:
             # Configure Gemini
             st.session_state.processing_step = "Configuring Gemini"
+            if not configure_gemini:
+                st.error("❌ Risk analysis service is currently unavailable. Please try again later.")
+                st.stop()
             configure_gemini()
             
             # File uploader
@@ -691,6 +822,9 @@ if __name__ == "__main__":
                             # Step 1: Extract text from image
                             status.write("📖 Extracting text from image...")
                             st.session_state.processing_step = "Extracting text from image"
+                            
+                            if not extract_text_from_image:
+                                raise Exception("Text extraction service unavailable")
                             
                             i_to_text = extract_text_from_image(uploaded_file, "extract all the text from the image")
                             
@@ -734,13 +868,27 @@ if __name__ == "__main__":
                             
                             status.write("✅ Risk analysis complete")
                             
-                            # Step 4: Get alternatives
-                            status.write("🔍 Finding healthier alternatives...")
-                            st.session_state.processing_step = "Finding alternatives"
+                            # Check risk score before proceeding to alternatives
+                            risk_data = safe_json_extract(risk_resp.content)
+                            risk_score = risk_data.get("risk_score", 0) if risk_data else 0
                             
-                            # Dynamic import to avoid circular dependency
-                            from risk_analyzer.ingredent_agent import risk_alternate
-                            alternatives_resp = risk_alternate.run(risk_resp.content if hasattr(risk_resp, 'content') else risk_resp)
+                            try:
+                                risk_score_float = float(risk_score)
+                            except (ValueError, TypeError):
+                                risk_score_float = 0
+                            
+                            # Step 4: Get alternatives (only if risk score >= 1)
+                            alternatives_resp = None
+                            if risk_score_float >= 1.0:
+                                status.write("🔍 Finding healthier alternatives...")
+                                st.session_state.processing_step = "Finding alternatives"
+                                
+                                # Dynamic import to avoid circular dependency
+                                from risk_analyzer.ingredent_agent import risk_alternate
+                                alternatives_resp = risk_alternate.run(risk_resp.content if hasattr(risk_resp, 'content') else risk_resp)
+                            else:
+                                status.write("✅ Low risk detected - skipping alternatives")
+                            
                             status.write("✅ Analysis complete!")
                             status.update(label="✅ Analysis complete!", state="complete")
                             
@@ -759,25 +907,35 @@ if __name__ == "__main__":
                     display_risk_scoring_stream(risk_data)
                     time.sleep(0.5)
                     
-                    # Show alternatives
-                    if hasattr(alternatives_resp, 'content') and alternatives_resp.content:
-                        alternatives_text = alternatives_resp.content.replace('```json', '').replace('```', '').strip()
-                        
-                        try:
-                            alternatives_data = json.loads(alternatives_text)
-                            display_alternatives_stream(alternatives_data)
-                        except json.JSONDecodeError:
+                    # Show alternatives only if risk score >= 1
+                    risk_score = risk_data.get("risk_score", 0) if risk_data else 0
+                    try:
+                        risk_score_float = float(risk_score)
+                    except (ValueError, TypeError):
+                        risk_score_float = 0
+                    
+                    if risk_score_float >= 1.0:
+                        if hasattr(alternatives_resp, 'content') and alternatives_resp.content:
+                            alternatives_text = alternatives_resp.content.replace('```json', '').replace('```', '').strip()
+                            
+                            try:
+                                alternatives_data = json.loads(alternatives_text)
+                                display_alternatives_stream(alternatives_data)
+                            except json.JSONDecodeError:
+                                st.header("🌱 Alternative Suggestions")
+                                stream_write("Found some alternative suggestions, but having trouble formatting them. Here's the raw information:")
+                                time.sleep(0.2)
+                                stream_write(alternatives_resp.content)
+                        else:
                             st.header("🌱 Alternative Suggestions")
-                            stream_write("Found some alternative suggestions, but having trouble formatting them. Here's the raw information:")
-                            time.sleep(0.2)
-                            stream_write(alternatives_resp.content)
+                            stream_write("⚠️ Could not generate alternative suggestions at this time. Please try again or consult with a nutritionist for personalized advice.")
                     else:
-                        st.header("🌱 Alternative Suggestions")
-                        stream_write("⚠️ Could not generate alternative suggestions at this time. Please try again or consult with a nutritionist for personalized advice.")
+                        st.header("✅ Low Risk Product")
+                        stream_write("🎉 Great news! This product has a low risk score and doesn't require alternative suggestions. It appears to be safe for consumption based on your profile.")
                     
                     # Final message
                     time.sleep(0.5)
-                    st.balloons()
+                    # st.balloons()
                     stream_write("🏁 **Analysis Complete!** You can upload another product image to analyze more ingredients.")
 
         except Exception as e:
@@ -790,15 +948,34 @@ if __name__ == "__main__":
         inputs=st.text_input("Enter the recipe name that you want to analyze")
         if inputs:
             if st.button("get Analysis"):
-                resp=nutrient_agent.run(inputs).content
-                resp=resp.replace("```json","").replace("```","")
+                try:
+                    with error_handler("Nutrient Analysis"):
+                        if not nutrient_agent:
+                            st.error("❌ Nutrient analysis service unavailable")
+                            st.stop()
+                        
+                        with st.spinner("🧪 Analyzing nutrients..."):
+                            resp = nutrient_agent.run(inputs).content
+                            resp = resp.replace("```json","").replace("```","")
 
-                json_obj=json.loads(resp)
-
-                for key, value in json_obj.items():
-                    st.write(f"{key}:")
-                    for nutrient, amount in value.items():
-                        st.write(f"  {nutrient}: {amount}")
+                            try:
+                                json_obj = json.loads(resp)
+                                st.success("✅ Nutrient analysis complete!")
+                                
+                                for key, value in json_obj.items():
+                                    st.write(f"**{key}:**")
+                                    if isinstance(value, dict):
+                                        for nutrient, amount in value.items():
+                                            st.write(f"  • {nutrient}: {amount}")
+                                    else:
+                                        st.write(f"  {value}")
+                            except json.JSONDecodeError as e:
+                                st.warning("⚠️ Could not parse nutrient data. Showing raw response:")
+                                st.text_area("Raw Response", resp, height=200)
+                                logger.error(f"JSON decode error in nutrient analysis: {str(e)}")
+                except Exception as e:
+                    st.error(f"❌ Nutrient analysis failed: {str(e)}")
+                    logger.error(f"Nutrient analysis error: {str(e)}", exc_info=True)
 
     with tab4:
         st.header("🍽️ Meal Planner")
@@ -807,21 +984,38 @@ if __name__ == "__main__":
             st.info("👈 Go to the sidebar to set up your profile with dietary preferences and nutritional targets.")
         else:
             if st.button("Generate Meal Plan: ", key="meal_plan_generator"):
-                with st.spinner('Generating meal plan...'):
-                    time.sleep(2)
-                profile = st.session_state.current_profile
-                recipe_list=[]
-                allergies_list=profile.allergies
-                meal_planner_download = []
+                try:
+                    with error_handler("Meal Plan Generation"):
+                        if not generate_meal:
+                            st.error("❌ Meal planning service unavailable")
+                            st.stop()
+                        
+                        with st.spinner('🍽️ Generating personalized meal plan...'):
+                            time.sleep(2)
+                        profile = st.session_state.current_profile
+                        recipe_list=[]
+                        allergies_list=profile.allergies
+                        meal_planner_download = []
+                        
+                        st.success("✅ Meal plan generated successfully!")
+                except Exception as e:
+                    st.error(f"❌ Meal plan generation failed: {str(e)}")
+                    logger.error(f"Meal plan generation error: {str(e)}", exc_info=True)
+                    st.stop()
 
                 # Breakfast
 
-                resp=generate_meal(profile.calorie_target,
-                                profile.protein_target,
-                                profile.fat_target,
-                                profile.carb_target
-                                ,"breakfast",
-                                recipe_list,allergies_list).recipes
+                try:
+                    resp=generate_meal(profile.calorie_target,
+                                    profile.protein_target,
+                                    profile.fat_target,
+                                    profile.carb_target
+                                    ,"breakfast",
+                                    recipe_list,allergies_list).recipes
+                except Exception as e:
+                    st.error(f"❌ Failed to generate breakfast recipes: {str(e)}")
+                    logger.error(f"Breakfast generation error: {str(e)}")
+                    resp = []
                 
                 st.write("This is the meal plain for the morning i.e breakfast shift")
                 meal_planner_download+=resp
@@ -863,12 +1057,17 @@ if __name__ == "__main__":
 
                 # Lunch
 
-                resp=generate_meal(profile.calorie_target,
-                                profile.protein_target,
-                                profile.fat_target,
-                                profile.carb_target
-                                ,"lunch",
-                                recipe_list,allergies_list).recipes
+                try:
+                    resp=generate_meal(profile.calorie_target,
+                                    profile.protein_target,
+                                    profile.fat_target,
+                                    profile.carb_target
+                                    ,"lunch",
+                                    recipe_list,allergies_list).recipes
+                except Exception as e:
+                    st.error(f"❌ Failed to generate lunch recipes: {str(e)}")
+                    logger.error(f"Lunch generation error: {str(e)}")
+                    resp = []
                 
                 meal_planner_download+=resp
                 st.write("This is the meal plain for the Lunch i.e AfterNoon shift")
@@ -912,12 +1111,17 @@ if __name__ == "__main__":
             
                 # # Dinner
 
-                resp=generate_meal(profile.calorie_target,
-                                profile.protein_target,
-                                profile.fat_target,
-                                profile.carb_target
-                                ,"dinner",
-                                recipe_list,allergies_list).recipes
+                try:
+                    resp=generate_meal(profile.calorie_target,
+                                    profile.protein_target,
+                                    profile.fat_target,
+                                    profile.carb_target
+                                    ,"dinner",
+                                    recipe_list,allergies_list).recipes
+                except Exception as e:
+                    st.error(f"❌ Failed to generate dinner recipes: {str(e)}")
+                    logger.error(f"Dinner generation error: {str(e)}")
+                    resp = []
                 meal_planner_download+=resp
                 
                 st.write("This is the meal plain for the Dinner i.e Night shift")
@@ -960,12 +1164,17 @@ if __name__ == "__main__":
 
                 # # Snacks
 
-                resp=generate_meal(profile.calorie_target,
-                                profile.protein_target,
-                                profile.fat_target,
-                                profile.carb_target
-                                ,"Snacks",
-                                recipe_list,allergies_list).recipes
+                try:
+                    resp=generate_meal(profile.calorie_target,
+                                    profile.protein_target,
+                                    profile.fat_target,
+                                    profile.carb_target
+                                    ,"Snacks",
+                                    recipe_list,allergies_list).recipes
+                except Exception as e:
+                    st.error(f"❌ Failed to generate snack recipes: {str(e)}")
+                    logger.error(f"Snack generation error: {str(e)}")
+                    resp = []
                 
                 meal_planner_download+=resp
                 st.write("This is the meal plain for the Snacks")
@@ -1008,25 +1217,36 @@ if __name__ == "__main__":
                     st.markdown("---")
 
                 # Convert list to markdown string
-                markdown_content = "# Daily Meal Plan\n\n"
-                for i, recipe in enumerate(meal_planner_download, 1):
-                    markdown_content += f"## Recipe {i}: {recipe.recipe_name}\n\n"
-                    markdown_content += "### Ingredients:\n"
-                    for ing in recipe.ingredients:
-                        markdown_content += f"- {ing.name}: {ing.quantity} {ing.unit}\n"
-                    markdown_content += f"\n### Nutrition:\n"
-                    markdown_content += f"- Calories: {recipe.nutrients.calories}\n"
-                    markdown_content += f"- Carbs: {recipe.nutrients.carbohydrates}g\n"
-                    markdown_content += f"- Fats: {recipe.nutrients.fats}g\n"
-                    markdown_content += f"- Proteins: {recipe.nutrients.proteins}g\n\n"
-                
-                if markdown_content:
-                    st.download_button(
-                        label="Download Markdown File",
-                        data=markdown_content,
-                        file_name="Daily_Meal_Planner.md",
-                        mime="text/markdown"
-                    )
-
-                else:
-                    st.warning("No content to download.")           
+                try:
+                    if meal_planner_download:
+                        markdown_content = "# Daily Meal Plan\n\n"
+                        for i, recipe in enumerate(meal_planner_download, 1):
+                            try:
+                                markdown_content += f"## Recipe {i}: {recipe.recipe_name}\n\n"
+                                markdown_content += "### Ingredients:\n"
+                                for ing in recipe.ingredients:
+                                    markdown_content += f"- {ing.name}: {ing.quantity} {ing.unit}\n"
+                                markdown_content += f"\n### Nutrition:\n"
+                                markdown_content += f"- Calories: {recipe.nutrients.calories}\n"
+                                markdown_content += f"- Carbs: {recipe.nutrients.carbohydrates}g\n"
+                                markdown_content += f"- Fats: {recipe.nutrients.fats}g\n"
+                                markdown_content += f"- Proteins: {recipe.nutrients.proteins}g\n\n"
+                            except AttributeError as e:
+                                logger.warning(f"Recipe formatting error: {str(e)}")
+                                markdown_content += f"## Recipe {i}: Error formatting recipe\n\n"
+                        
+                        if len(markdown_content) > 50:  # More than just header
+                            st.download_button(
+                                label="📥 Download Meal Plan",
+                                data=markdown_content,
+                                file_name="Daily_Meal_Planner.md",
+                                mime="text/markdown",
+                                type="secondary"
+                            )
+                        else:
+                            st.warning("⚠️ No valid meal plan content to download.")
+                    else:
+                        st.warning("⚠️ No meal plan generated to download.")
+                except Exception as e:
+                    st.error(f"❌ Failed to prepare download: {str(e)}")
+                    logger.error(f"Download preparation error: {str(e)}")           
