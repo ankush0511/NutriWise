@@ -26,4 +26,6 @@ Thumbs.db
 # Project specific
 *.db
 *.sqlite3
+user_profiles.json
 .user_profiles.json
+/user_profiles.json
