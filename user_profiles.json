@@ -10,8 +10,8 @@
       "vegetarian"
     ],
     "severity_level": "moderate",
-    "calorie_target": 2400,
-    "protein_target": 56,
+    "calorie_target": 4000,
+    "protein_target": 81,
     "fat_target": 73,
     "carb_target": 400
   }

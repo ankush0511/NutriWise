@@ -24,51 +24,108 @@ import wave
 
 # Page configuration
 st.set_page_config(
-    page_title="🍳 AI Recipe Generator",
-    page_icon="🍳",
+    page_title="🧠 NutriWise - Smart Nutrition Platform",
+    page_icon="🧠",
     layout="wide"
 )
 
-# Custom CSS
+# Custom CSS with NutriWise Branding
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+.nutriwise-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 20px;
+    text-align: center;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.nutriwise-logo {
+    font-family: 'Poppins', sans-serif;
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.nutriwise-tagline {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.9);
+    margin-top: 0.5rem;
+    font-weight: 300;
+}
+
 .main-header {
     text-align: center;
-    color: #FF6B35;
+    color: #667eea;
     font-size: 3.5rem;
     font-weight: bold;
     margin-bottom: 1rem;
+    font-family: 'Poppins', sans-serif;
 }
+
 .subtitle {
     text-align: center;
     color: #666;
     font-size: 1.3rem;
     margin-bottom: 3rem;
+    font-family: 'Poppins', sans-serif;
 }
+
 .input-card {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     padding: 2rem;
     border-radius: 15px;
     margin: 1rem 0;
     color: white;
+    font-family: 'Poppins', sans-serif;
 }
+
 .input-card h3 {
     color: white;
     margin-bottom: 1rem;
+    font-family: 'Poppins', sans-serif;
 }
+
 .recipe-output {
     background-color: #fff;
     padding: 2rem;
     border-radius: 15px;
-    border-left: 5px solid #FF6B35;
+    border-left: 5px solid #667eea;
     margin: 2rem 0;
     box-shadow: 0px 4px 12px rgba(0,0,0,0.05);
+    font-family: 'Poppins', sans-serif;
 }
+
 .recipe-title {
     font-size: 2rem;
     font-weight: bold;
-    color: #FF6B35;
+    color: #667eea;
     margin-bottom: 1rem;
+    font-family: 'Poppins', sans-serif;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 50px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 10px;
+    color: #667eea;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+}
+
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -307,15 +364,449 @@ def get_user_nutrition_targets():
     return {"calories": 2000, "protein": 50, "fat": 65, "carbs": 300}
 
 if __name__ == "__main__":
-    st.title("User Profile Manager")
+    # Initialize session state
+    if 'current_profile' not in st.session_state:
+        st.session_state.current_profile = None
+    
+    # NutriWise Header
+    st.markdown("""
+    <div class="nutriwise-header">
+        <h1 class="nutriwise-logo">🧠 NutriWise</h1>
+        <p class="nutriwise-tagline">Smart Nutrition Decisions for a Healthier You</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     allergies = render_profile_section()
     # st.write(allergies)
     
-    tab1,tab2,tab3,tab4=st.tabs(['Meal Planner','nutrient analyzer','ingredent risk analyzer','recipe generator'])
+    tab1,tab2,tab3,tab4=st.tabs(['🍳 Recipe Generator','⚠️ Ingredient Risk Analyzer','🧪 Ingredient Nutrient Analyzer','🍽️ Meal Planner'])
     with tab1:
-        st.header("Meal Planner")
-        if hasattr(st.session_state, 'current_profile') and st.session_state.current_profile:
-            if st.button("Generate Meal Plan: "):
+        st.header("🍳 Recipe Generator")
+        st.markdown('<p class="subtitle">Transform ingredients into delicious recipes using Text, Voice, or Images</p>', unsafe_allow_html=True)
+
+        # Input Methods
+        st.markdown("## 📝 Choose Your Input Method")
+
+        subtab1, subtab2, subtab3 = st.tabs(["📝 Text Input", "🎤 Voice Recording", "📸 Image Upload"])
+
+        with subtab1:
+            st.markdown('<div class="input-card">', unsafe_allow_html=True)
+            st.markdown("### Type Your Ingredients")
+            ingre_list = st.text_area(
+                "List your available ingredients:",
+                placeholder="e.g., paneer, rice, tomatoes, onions, spices...",
+                height=120,
+                key="recipe_text_input"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with subtab2:
+            st.markdown('<div class="input-card">', unsafe_allow_html=True)
+            st.markdown("### Record Your Voice")
+            st.info("🎤 Click to start recording and speak your ingredients clearly")
+            audio = mic_recorder(
+                start_prompt="🎤 Start Recording", 
+                stop_prompt="⏹️ Stop Recording", 
+                key='recipe_recorder'
+            )
+            if audio:
+                st.success("✅ Audio recorded successfully!")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with subtab3:
+            st.markdown('<div class="input-card">', unsafe_allow_html=True)
+            st.markdown("### Upload Food Image")
+            uploaded_image = st.file_uploader(
+                "Upload an image of ingredients or a dish:",
+                type=["png", "jpg", "jpeg"],
+                key="recipe_image_uploader"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # Generate Button
+        st.markdown("---")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            generate_btn = st.button(
+                "🚀 Generate Amazing Recipe", 
+                type="primary", 
+                use_container_width=True,
+                key="generate_recipe_btn"
+            )
+
+        # Recipe Generation Logic
+        if generate_btn:
+            resp = ""
+            has_input = (ingre_list and ingre_list.strip()) or audio or uploaded_image
+            
+            if not has_input:
+                st.error("❌ Please provide input using one of the methods above!")
+            else:
+                with st.spinner("🔮 Creating your perfect recipe..."):
+                    
+                    # Text input
+                    if ingre_list and ingre_list.strip():
+                        st.info("📝 Processing text ingredients...")
+                        placeholder = st.empty()
+                        for chunk in chain.stream({"text_input": ingre_list}):
+                            resp += chunk.content
+                            placeholder.markdown("**Generating...** ✨")
+                        placeholder.empty()
+                    
+                    # Voice input
+                    elif audio:
+                        st.info("🎤 Processing voice recording...")
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+                            with wave.open(tmp.name, "wb") as wf:
+                                wf.setnchannels(1)
+                                wf.setsampwidth(2)
+                                wf.setframerate(16000)
+                                wf.writeframes(audio["bytes"])
+                            temp_filename = tmp.name
+                        resp = voice_to_recipe(temp_filename)
+                    
+                    # Image input
+                    elif uploaded_image:
+                        st.info("📸 Analyzing uploaded image...")
+                        base64_img = encode_image(uploaded_image)
+                        resp = pic_to_recipe(base64_img)
+                
+                # Display Results
+                if resp:
+                    st.markdown('<div class="recipe-output">', unsafe_allow_html=True)
+                    
+                    recipe_name = get_recipe(resp)
+                    st.markdown(f'<div class="recipe-title">🍽️ {recipe_name}</div>', unsafe_allow_html=True)
+                    st.markdown(resp)
+                    
+                    # Only generate AI images if NOT image upload
+                    if not uploaded_image:
+                        st.markdown("### 📸 Recipe Visualization")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            try:
+                                img_query = f"generate the image of {recipe_name}"
+                                response = recipe_image(img_query)
+                                st.image(show_image(response), caption=f"AI Generated: {recipe_name}")
+                            except Exception:
+                                st.warning("⚠️ Could not generate AI image")
+                        with col2:
+                            width, height, seed, model = 1024, 1024, 42, 'nanobanana'
+                            image_url = f"https://pollinations.ai/p/{recipe_name}?width={width}&height={height}&seed={seed}&model={model}"
+                            st.image(image_url, caption=f"Alternative View: {recipe_name}")
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    # Download
+                    st.markdown("---")
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    with col2:
+                        st.download_button(
+                            label="📥 Download Recipe as Markdown",
+                            data=resp,
+                            file_name=f"{recipe_name.replace(' ', '_')}_recipe.md",
+                            mime="text/markdown",
+                            type="secondary",
+                            use_container_width=True
+                        )
+                    
+                    st.success("🎉 Recipe generated successfully! Enjoy cooking!")
+                else:
+                    st.error("❌ Failed to generate recipe. Please try again.")
+
+    with tab2:
+        st.header("⚠️ Ingredient Risk Analyzer")
+
+        # Check for user profile
+        if not hasattr(st.session_state, 'current_profile') or not st.session_state.current_profile:
+            st.warning("⚠️ Please create or select a user profile from the sidebar before analyzing ingredients!")
+            st.info("👈 Go to the sidebar to set up your profile with allergy information and dietary restrictions.")
+
+        # Initialize session state
+        if 'processing_step' not in st.session_state:
+            st.session_state.processing_step = None
+
+        def stream_text(text, container=None, delay=0.005):
+            """Stream text word by word for smooth display"""
+            if container is None:
+                container = st.empty()
+            
+            displayed_text = ""
+            words = text.split()
+            
+            for word in words:
+                displayed_text += word + " "
+                container.markdown(displayed_text)
+                time.sleep(delay)
+            
+            return container
+
+        def stream_write(text, delay=0.005):
+            """Create new container and stream text into it"""
+            container = st.empty()
+            return stream_text(text, container, delay)
+
+        def safe_json_extract(text, pattern=r"```json\s*({.*?})"):
+            """Safely extract JSON from text with multiple fallback patterns"""
+            patterns = [
+                r"```json\s*({.*?})",
+                r"```\s*({.*?})",
+                r"({.*?})",
+            ]
+            
+            for pattern in patterns:
+                matches = re.findall(pattern, text, re.DOTALL)
+                if matches:
+                    try:
+                        return json.loads(matches[0])
+                    except json.JSONDecodeError:
+                        continue
+            
+            try:
+                return json.loads(text.strip())
+            except json.JSONDecodeError:
+                return None
+
+        def display_risk_scoring_stream(risk_data):
+            """Display risk scoring with streaming effect"""
+            st.header("⚠️ Risk Analysis")
+            
+            if not risk_data:
+                stream_write("❌ Could not parse the risk scoring data. Please try again with a clearer image.")
+                return
+            
+            allergens = risk_data.get("allergens_found", [])
+            score = risk_data.get("risk_score", None)
+            explanation = risk_data.get("explanation", "")
+            
+            # Stream allergens information
+            if allergens:
+                allergen_text = f"**🚨 Allergens Detected:** {', '.join([f'`{a}`' for a in allergens])}"
+            else:
+                allergen_text = "**✅ No Common Allergens Detected**"
+            
+            stream_write(allergen_text)
+            time.sleep(0.2)
+            
+            # Stream risk score
+            if score is not None:
+                try:
+                    score_float = float(score)
+                    if score_float >= 0.8:
+                        emoji = "🔴"
+                        risk_level = "High Risk"
+                    elif score_float >= 0.5:
+                        emoji = "🟡"
+                        risk_level = "Medium Risk"
+                    else:
+                        emoji = "🟢"
+                        risk_level = "Low Risk"
+                    
+                    score_text = f"**{emoji} Risk Score:** {score}/1.0 ({risk_level})"
+                except (ValueError, TypeError):
+                    score_text = f"**📊 Risk Score:** {score}"
+            else:
+                score_text = "**📊 Risk Score:** Not available"
+            
+            stream_write(score_text)
+            time.sleep(0.2)
+            
+            # Stream explanation
+            if explanation:
+                explanation_text = f"**💡 Detailed Analysis:**\n\n{explanation}"
+                stream_write(explanation_text)
+
+        def display_alternatives_stream(alternatives_data):
+            """Display alternatives with streaming effect"""
+            st.header("🌱 Alternative Suggestions")
+            
+            if not alternatives_data:
+                stream_write("❌ Could not find alternative suggestions at the moment. Please try again.")
+                return
+            
+            alternatives = alternatives_data.get("alternative_suggestions", [])
+            if not alternatives:
+                stream_write("🤔 No specific alternative suggestions were found. Consider looking for products with simpler ingredient lists and fewer additives.")
+                return
+            
+            stream_write(f"**Found {len(alternatives)} healthier alternatives for you:**")
+            time.sleep(0.3)
+            
+            for i, alt in enumerate(alternatives):
+                st.subheader(f"✅ Option {i+1}")
+                
+                product_name = alt.get('product_name', f'Alternative {i+1}')
+                reason = alt.get('reason', 'No specific reason provided')
+                
+                # Stream product name
+                product_text = f"**📦 Product:** {product_name}"
+                stream_write(product_text)
+                time.sleep(0.2)
+                
+                # Stream reason
+                reason_text = f"**🎯 Why this is better:** {reason}"
+                stream_write(reason_text)
+                time.sleep(0.2)
+                
+                # Handle allergen profile
+                allergen_profile = alt.get('allergen_profile', {})
+                if isinstance(allergen_profile, dict) and allergen_profile:
+                    profile_items = [f"{k}: {v}" for k, v in allergen_profile.items()]
+                    profile_text = ", ".join(profile_items)
+                    allergen_text = f"**🛡️ Allergen Profile:** {profile_text}"
+                elif allergen_profile:
+                    allergen_text = f"**🛡️ Allergen Profile:** {allergen_profile}"
+                else:
+                    allergen_text = "**🛡️ Allergen Profile:** Information not available"
+                
+                stream_write(allergen_text)
+                
+                # Add separator between alternatives
+                if i < len(alternatives) - 1:
+                    time.sleep(0.3)
+                    st.markdown("---")
+
+        # Main app logic
+        try:
+            # Configure Gemini
+            st.session_state.processing_step = "Configuring Gemini"
+            configure_gemini()
+            
+            # File uploader
+            uploaded_file = st.file_uploader(
+                "Upload an image of ingredient list", 
+                type=["png", "jpg", "jpeg"],
+                help="Upload a clear image of ingredient list or product label",
+                key="risk_analyzer_uploader"
+            )
+            
+            if uploaded_file is not None:
+                # Display uploaded image
+                # st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
+                if st.button("Get Analysis"):
+                
+                    # Show progress with status
+                    with st.status("🔍 Analyzing your image...", expanded=True) as status:
+                        try:
+                            # Step 1: Extract text from image
+                            status.write("📖 Extracting text from image...")
+                            st.session_state.processing_step = "Extracting text from image"
+                            
+                            i_to_text = extract_text_from_image(uploaded_file, "extract all the text from the image")
+                            
+                            if not i_to_text or i_to_text.strip() == "":
+                                status.update(label="❌ Text extraction failed", state="error")
+                                stream_write("Could not extract readable text from the image. Please try uploading a clearer photo with better lighting and focus.")
+                                st.stop()
+                            
+                            status.write("✅ Text extracted successfully")
+                            
+                            # Step 2: Extract ingredients
+                            status.write("🧪 Identifying ingredients...")
+                            st.session_state.processing_step = "Extracting ingredients"
+                            
+                            # Dynamic import to avoid circular dependency
+                            from risk_analyzer.ingredent_agent import text_extractor
+                            ingredients_resp = text_extractor.run(f"the user input is: {i_to_text}")
+                            
+                            if not hasattr(ingredients_resp, 'content') or not ingredients_resp.content:
+                                status.update(label="❌ Ingredient extraction failed", state="error")
+                                stream_write("Could not identify ingredients from the extracted text. Please ensure the image shows a clear ingredient list.")
+                                st.stop()
+                            
+                            extracted_ingredients = ingredients_resp.content
+                            status.write("✅ Ingredients identified")
+                            
+                            # Step 3: Risk scoring
+                            status.write("⚖️ Analyzing health risks...")
+                            st.session_state.processing_step = "Analyzing risks"
+                            
+                            # Dynamic import to avoid circular dependency
+                            from risk_analyzer.ingredent_agent import risk_scoring
+                            # Get user allergies from current session
+                            user_allergies = allergies if allergies else []
+                            risk_resp = risk_scoring.run(f"ingredients: {extracted_ingredients}, user_allergy: {user_allergies}")
+
+                            if not hasattr(risk_resp, 'content') or not risk_resp.content:
+                                status.update(label="❌ Risk analysis failed", state="error")
+                                stream_write("Encountered an issue while analyzing health risks. Please try again.")
+                                st.stop()
+                            
+                            status.write("✅ Risk analysis complete")
+                            
+                            # Step 4: Get alternatives
+                            status.write("🔍 Finding healthier alternatives...")
+                            st.session_state.processing_step = "Finding alternatives"
+                            
+                            # Dynamic import to avoid circular dependency
+                            from risk_analyzer.ingredent_agent import risk_alternate
+                            alternatives_resp = risk_alternate.run(risk_resp.content if hasattr(risk_resp, 'content') else risk_resp)
+                            status.write("✅ Analysis complete!")
+                            status.update(label="✅ Analysis complete!", state="complete")
+                            
+                        except Exception as e:
+                            status.update(label="❌ Analysis failed", state="error")
+                            stream_write(f"Error during {st.session_state.processing_step}: {str(e)}")
+                            with st.expander("Error Details", expanded=False):
+                                st.code(traceback.format_exc())
+                            st.stop()
+                    
+                    # Display results with streaming
+                    st.success("🎉 Analysis Complete! Here are your results:")
+                    
+                    # Show risk analysis
+                    risk_data = safe_json_extract(risk_resp.content)
+                    display_risk_scoring_stream(risk_data)
+                    time.sleep(0.5)
+                    
+                    # Show alternatives
+                    if hasattr(alternatives_resp, 'content') and alternatives_resp.content:
+                        alternatives_text = alternatives_resp.content.replace('```json', '').replace('```', '').strip()
+                        
+                        try:
+                            alternatives_data = json.loads(alternatives_text)
+                            display_alternatives_stream(alternatives_data)
+                        except json.JSONDecodeError:
+                            st.header("🌱 Alternative Suggestions")
+                            stream_write("Found some alternative suggestions, but having trouble formatting them. Here's the raw information:")
+                            time.sleep(0.2)
+                            stream_write(alternatives_resp.content)
+                    else:
+                        st.header("🌱 Alternative Suggestions")
+                        stream_write("⚠️ Could not generate alternative suggestions at this time. Please try again or consult with a nutritionist for personalized advice.")
+                    
+                    # Final message
+                    time.sleep(0.5)
+                    st.balloons()
+                    stream_write("🏁 **Analysis Complete!** You can upload another product image to analyze more ingredients.")
+
+        except Exception as e:
+            st.error(f"❌ Application Error: {str(e)}")
+            with st.expander("Error Details", expanded=False):
+                st.code(traceback.format_exc())
+
+    with tab3:
+        st.header("🧪 Ingredient Nutrient Analyzer")
+        inputs=st.text_input("Enter the recipe name that you want to analyze")
+        if inputs:
+            if st.button("get Analysis"):
+                resp=nutrient_agent.run(inputs).content
+                resp=resp.replace("```json","").replace("```","")
+
+                json_obj=json.loads(resp)
+
+                for key, value in json_obj.items():
+                    st.write(f"{key}:")
+                    for nutrient, amount in value.items():
+                        st.write(f"  {nutrient}: {amount}")
+
+    with tab4:
+        st.header("🍽️ Meal Planner")
+        if not hasattr(st.session_state, 'current_profile') or not st.session_state.current_profile:
+            st.warning("⚠️ Please create or select a user profile from the sidebar before generating a meal plan!")
+            st.info("👈 Go to the sidebar to set up your profile with dietary preferences and nutritional targets.")
+        else:
+            if st.button("Generate Meal Plan: ", key="meal_plan_generator"):
                 with st.spinner('Generating meal plan...'):
                     time.sleep(2)
                 profile = st.session_state.current_profile
@@ -537,468 +1028,5 @@ if __name__ == "__main__":
                         mime="text/markdown"
                     )
 
-    with tab2:
-        st.header("Nutrient Analyzer")
-        inputs=st.text_input("Enter the recipe name that you want to analyze")
-        if inputs:
-            resp=nutrient_agent.run(inputs).content
-            resp=resp.replace("```json","").replace("```","")
-
-            json_obj=json.loads(resp)
-            # print(json_obj)
-
-            for key, value in json_obj.items():
-                st.write(f"{key}:")
-                for nutrient, amount in value.items():
-                    st.write(f"  {nutrient}: {amount}")
-
-    with tab3:
-        # Configure page
-        st.set_page_config(page_title="Ingredient Risk Analyzer", page_icon="🔍")
-        st.title("🔍 Ingredient Risk Analyzer")
-
-        # Initialize session state
-        if 'processing_step' not in st.session_state:
-            st.session_state.processing_step = None
-
-        def stream_text(text, container=None, delay=0.005):
-            """Stream text word by word for smooth display"""
-            if container is None:
-                container = st.empty()
-            
-            displayed_text = ""
-            words = text.split()
-            
-            for word in words:
-                displayed_text += word + " "
-                container.markdown(displayed_text)
-                time.sleep(delay)
-            
-            return container
-
-        def stream_write(text, delay=0.005):
-            """Create new container and stream text into it"""
-            container = st.empty()
-            return stream_text(text, container, delay)
-
-        def safe_json_extract(text, pattern=r"```json\s*({.*?})"):
-            """Safely extract JSON from text with multiple fallback patterns"""
-            patterns = [
-                r"```json\s*({.*?})",
-                r"```\s*({.*?})",
-                r"({.*?})",
-            ]
-            
-            for pattern in patterns:
-                matches = re.findall(pattern, text, re.DOTALL)
-                if matches:
-                    try:
-                        return json.loads(matches[0])
-                    except json.JSONDecodeError:
-                        continue
-            
-            try:
-                return json.loads(text.strip())
-            except json.JSONDecodeError:
-                return None
-
-        def display_risk_scoring_stream(risk_data):
-            """Display risk scoring with streaming effect"""
-            st.header("⚠️ Risk Analysis")
-            
-            if not risk_data:
-                stream_write("❌ Could not parse the risk scoring data. Please try again with a clearer image.")
-                return
-            
-            allergens = risk_data.get("allergens_found", [])
-            score = risk_data.get("risk_score", None)
-            explanation = risk_data.get("explanation", "")
-            
-            # Stream allergens information
-            if allergens:
-                allergen_text = f"**🚨 Allergens Detected:** {', '.join([f'`{a}`' for a in allergens])}"
-            else:
-                allergen_text = "**✅ No Common Allergens Detected**"
-            
-            stream_write(allergen_text)
-            time.sleep(0.2)
-            
-            # Stream risk score
-            if score is not None:
-                try:
-                    score_float = float(score)
-                    if score_float >= 0.8:
-                        emoji = "🔴"
-                        risk_level = "High Risk"
-                    elif score_float >= 0.5:
-                        emoji = "🟡"
-                        risk_level = "Medium Risk"
-                    else:
-                        emoji = "🟢"
-                        risk_level = "Low Risk"
-                    
-                    score_text = f"**{emoji} Risk Score:** {score}/1.0 ({risk_level})"
-                except (ValueError, TypeError):
-                    score_text = f"**📊 Risk Score:** {score}"
-            else:
-                score_text = "**📊 Risk Score:** Not available"
-            
-            stream_write(score_text)
-            time.sleep(0.2)
-            
-            # Stream explanation
-            if explanation:
-                explanation_text = f"**💡 Detailed Analysis:**\n\n{explanation}"
-                stream_write(explanation_text)
-
-        def display_alternatives_stream(alternatives_data):
-            """Display alternatives with streaming effect"""
-            st.header("🌱 Alternative Suggestions")
-            
-            if not alternatives_data:
-                stream_write("❌ Could not find alternative suggestions at the moment. Please try again.")
-                return
-            
-            alternatives = alternatives_data.get("alternative_suggestions", [])
-            if not alternatives:
-                stream_write("🤔 No specific alternative suggestions were found. Consider looking for products with simpler ingredient lists and fewer additives.")
-                return
-            
-            stream_write(f"**Found {len(alternatives)} healthier alternatives for you:**")
-            time.sleep(0.3)
-            
-            for i, alt in enumerate(alternatives):
-                st.subheader(f"✅ Option {i+1}")
-                
-                product_name = alt.get('product_name', f'Alternative {i+1}')
-                reason = alt.get('reason', 'No specific reason provided')
-                
-                # Stream product name
-                product_text = f"**📦 Product:** {product_name}"
-                stream_write(product_text)
-                time.sleep(0.2)
-                
-                # Stream reason
-                reason_text = f"**🎯 Why this is better:** {reason}"
-                stream_write(reason_text)
-                time.sleep(0.2)
-                
-                # Handle allergen profile
-                allergen_profile = alt.get('allergen_profile', {})
-                if isinstance(allergen_profile, dict) and allergen_profile:
-                    profile_items = [f"{k}: {v}" for k, v in allergen_profile.items()]
-                    profile_text = ", ".join(profile_items)
-                    allergen_text = f"**🛡️ Allergen Profile:** {profile_text}"
-                elif allergen_profile:
-                    allergen_text = f"**🛡️ Allergen Profile:** {allergen_profile}"
                 else:
-                    allergen_text = "**🛡️ Allergen Profile:** Information not available"
-                
-                stream_write(allergen_text)
-                
-                # Add separator between alternatives
-                if i < len(alternatives) - 1:
-                    time.sleep(0.3)
-                    st.markdown("---")
-
-        # Main app logic
-        try:
-            # Configure Gemini
-            st.session_state.processing_step = "Configuring Gemini"
-            configure_gemini()
-            
-            # File uploader
-            uploaded_file = st.file_uploader(
-                "Upload an image of ingredient list", 
-                type=["png", "jpg", "jpeg"],
-                help="Upload a clear image of ingredient list or product label"
-            )
-            
-            if uploaded_file is not None:
-                # Display uploaded image
-                st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
-                
-                # Show progress with status
-                with st.status("🔍 Analyzing your image...", expanded=True) as status:
-                    try:
-                        # Step 1: Extract text from image
-                        status.write("📖 Extracting text from image...")
-                        st.session_state.processing_step = "Extracting text from image"
-                        
-                        i_to_text = extract_text_from_image(uploaded_file, "extract all the text from the image")
-                        
-                        if not i_to_text or i_to_text.strip() == "":
-                            status.update(label="❌ Text extraction failed", state="error")
-                            stream_write("Could not extract readable text from the image. Please try uploading a clearer photo with better lighting and focus.")
-                            st.stop()
-                        
-                        status.write("✅ Text extracted successfully")
-                        
-                        # Step 2: Extract ingredients
-                        status.write("🧪 Identifying ingredients...")
-                        st.session_state.processing_step = "Extracting ingredients"
-                        
-                        # Dynamic import to avoid circular dependency
-                        from risk_analyzer.ingredent_agent import text_extractor
-                        ingredients_resp = text_extractor.run(f"the user input is: {i_to_text}")
-                        
-                        if not hasattr(ingredients_resp, 'content') or not ingredients_resp.content:
-                            status.update(label="❌ Ingredient extraction failed", state="error")
-                            stream_write("Could not identify ingredients from the extracted text. Please ensure the image shows a clear ingredient list.")
-                            st.stop()
-                        
-                        extracted_ingredients = ingredients_resp.content
-                        status.write("✅ Ingredients identified")
-                        
-                        # Step 3: Risk scoring
-                        status.write("⚖️ Analyzing health risks...")
-                        st.session_state.processing_step = "Analyzing risks"
-                        
-
-
-                        # Dynamic import to avoid circular dependency
-                        from risk_analyzer.ingredent_agent import risk_scoring
-                        # Get user allergies from current session
-                        user_allergies = allergies if allergies else []
-                        risk_resp = risk_scoring.run(f"ingredients: {extracted_ingredients}, user_allergy: {user_allergies}")
-
-
-
-                        if not hasattr(risk_resp, 'content') or not risk_resp.content:
-                            status.update(label="❌ Risk analysis failed", state="error")
-                            stream_write("Encountered an issue while analyzing health risks. Please try again.")
-                            st.stop()
-                        
-                        status.write("✅ Risk analysis complete")
-                        
-                        # Step 4: Get alternatives
-                        status.write("🔍 Finding healthier alternatives...")
-                        st.session_state.processing_step = "Finding alternatives"
-                        
-                        # Dynamic import to avoid circular dependency
-                        from risk_analyzer.ingredent_agent import risk_alternate
-                        alternatives_resp = risk_alternate.run(risk_resp.content if hasattr(risk_resp, 'content') else risk_resp)
-                        status.write("✅ Analysis complete!")
-                        status.update(label="✅ Analysis complete!", state="complete")
-                        
-                    except Exception as e:
-                        status.update(label="❌ Analysis failed", state="error")
-                        stream_write(f"Error during {st.session_state.processing_step}: {str(e)}")
-                        with st.expander("Error Details", expanded=False):
-                            st.code(traceback.format_exc())
-                        st.stop()
-                
-                # Display results with streaming
-                st.success("🎉 Analysis Complete! Here are your results:")
-                
-                # Show risk analysis
-                risk_data = safe_json_extract(risk_resp.content)
-                display_risk_scoring_stream(risk_data)
-                time.sleep(0.5)
-                
-                # Show alternatives
-                if hasattr(alternatives_resp, 'content') and alternatives_resp.content:
-                    alternatives_text = alternatives_resp.content.replace('```json', '').replace('```', '').strip()
-                    
-                    try:
-                        alternatives_data = json.loads(alternatives_text)
-                        display_alternatives_stream(alternatives_data)
-                    except json.JSONDecodeError:
-                        st.header("🌱 Alternative Suggestions")
-                        stream_write("Found some alternative suggestions, but having trouble formatting them. Here's the raw information:")
-                        time.sleep(0.2)
-                        stream_write(alternatives_resp.content)
-                else:
-                    st.header("🌱 Alternative Suggestions")
-                    stream_write("⚠️ Could not generate alternative suggestions at this time. Please try again or consult with a nutritionist for personalized advice.")
-                
-                # Final message
-                time.sleep(0.5)
-                st.balloons()
-                stream_write("🏁 **Analysis Complete!** You can upload another product image to analyze more ingredients.")
-
-        except Exception as e:
-            st.error(f"❌ Application Error: {str(e)}")
-            with st.expander("Error Details", expanded=False):
-                st.code(traceback.format_exc())
-
-        # Sidebar information
-        with st.sidebar:
-            st.header("ℹ️ How to Use")
-            st.write("""
-            1. 📤 Upload a clear image of ingredients
-            2. ⏳ Wait for AI analysis
-            3. 📊 Review risk assessment  
-            4. 🌱 Check healthier alternatives
-            """)
-            
-            st.header("💡 Tips for Best Results")
-            st.write("""
-            - Use good lighting when taking photos
-            - Keep the image focused and clear
-            - Ensure ingredient text is readable
-            - Avoid glare, shadows, or blur
-            - Include the entire ingredient list
-            """)
-            
-            st.header("🔧 Troubleshooting")
-            st.write("""
-            - **Blurry text?** → Retake photo with better focus
-            - **Poor lighting?** → Use natural light or better lamp
-            - **Cut-off ingredients?** → Include full ingredient list
-            - **Error messages?** → Try a different image format
-            """)
-
-            if st.button("🔄 Reset Application"):
-                st.rerun()
-
-    with tab4:
-        # Header
-        st.markdown('<h1 class="main-header">🍳 AI Recipe Generator</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="subtitle">Transform ingredients into delicious recipes using Text, Voice, or Images</p>', unsafe_allow_html=True)
-
-        # Input Methods
-        st.markdown("## 📝 Choose Your Input Method")
-
-        tab1, tab2, tab3 = st.tabs(["📝 Text Input", "🎤 Voice Recording", "📸 Image Upload"])
-
-        with tab1:
-            st.markdown('<div class="input-card">', unsafe_allow_html=True)
-            st.markdown("### Type Your Ingredients")
-            ingre_list = st.text_area(
-                "List your available ingredients:",
-                placeholder="e.g., paneer, rice, tomatoes, onions, spices...",
-                height=120,
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with tab2:
-            st.markdown('<div class="input-card">', unsafe_allow_html=True)
-            st.markdown("### Record Your Voice")
-            st.info("🎤 Click to start recording and speak your ingredients clearly")
-            audio = mic_recorder(
-                start_prompt="🎤 Start Recording", 
-                stop_prompt="⏹️ Stop Recording", 
-                key='recorder'
-            )
-            if audio:
-                st.success("✅ Audio recorded successfully!")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with tab3:
-            st.markdown('<div class="input-card">', unsafe_allow_html=True)
-            st.markdown("### Upload Food Image")
-            uploaded_image = st.file_uploader(
-                "Upload an image of ingredients or a dish:",
-                type=["png", "jpg", "jpeg"]
-            )
-            # if uploaded_image:
-                # st.image(uploaded_image, caption="Uploaded Image", width=350)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # Generate Button
-        st.markdown("---")
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            generate_btn = st.button(
-                "🚀 Generate Amazing Recipe", 
-                type="primary", 
-                use_container_width=True,
-            )
-
-        # Recipe Generation Logic
-        if generate_btn:
-            resp = ""
-            has_input = (ingre_list and ingre_list.strip()) or audio or uploaded_image
-            
-            if not has_input:
-                st.error("❌ Please provide input using one of the methods above!")
-            else:
-                with st.spinner("🔮 Creating your perfect recipe..."):
-                    
-                    # Text input
-                    if ingre_list and ingre_list.strip():
-                        st.info("📝 Processing text ingredients...")
-                        placeholder = st.empty()
-                        for chunk in chain.stream({"text_input": ingre_list}):
-                            resp += chunk.content
-                            placeholder.markdown("**Generating...** ✨")
-                        placeholder.empty()
-                    
-                    # Voice input
-                    elif audio:
-                        st.info("🎤 Processing voice recording...")
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-                            with wave.open(tmp.name, "wb") as wf:
-                                wf.setnchannels(1)
-                                wf.setsampwidth(2)
-                                wf.setframerate(16000)
-                                wf.writeframes(audio["bytes"])
-                            temp_filename = tmp.name
-                        resp = voice_to_recipe(temp_filename)
-                    
-                    # Image input
-                    elif uploaded_image:
-                        st.info("📸 Analyzing uploaded image...")
-                        base64_img = encode_image(uploaded_image)
-                        resp = pic_to_recipe(base64_img)
-                
-                # Display Results
-                if resp:
-                    st.markdown('<div class="recipe-output">', unsafe_allow_html=True)
-                    
-                    recipe_name = get_recipe(resp)
-                    st.markdown(f'<div class="recipe-title">🍽️ {recipe_name}</div>', unsafe_allow_html=True)
-                    st.markdown(resp)
-                    
-                    # Only generate AI images if NOT image upload
-                    if not uploaded_image:
-                        st.markdown("### 📸 Recipe Visualization")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            try:
-                                img_query = f"generate the image of {recipe_name}"
-                                response = recipe_image(img_query)
-                                st.image(show_image(response), caption=f"AI Generated: {recipe_name}")
-                            except Exception:
-                                st.warning("⚠️ Could not generate AI image")
-                        with col2:
-                            width, height, seed, model = 1024, 1024, 42, 'nanobanana'
-                            image_url = f"https://pollinations.ai/p/{recipe_name}?width={width}&height={height}&seed={seed}&model={model}"
-                            st.image(image_url, caption=f"Alternative View: {recipe_name}")
-                    
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    # Download
-                    st.markdown("---")
-                    col1, col2, col3 = st.columns([1, 2, 1])
-                    with col2:
-                        st.download_button(
-                            label="📥 Download Recipe as Markdown",
-                            data=resp,
-                            file_name=f"{recipe_name.replace(' ', '_')}_recipe.md",
-                            mime="text/markdown",
-                            type="secondary",
-                            use_container_width=True
-                        )
-                    
-                    st.success("🎉 Recipe generated successfully! Enjoy cooking!")
-                else:
-                    st.error("❌ Failed to generate recipe. Please try again.")
-
-        # Footer
-        st.markdown("---")
-        st.markdown("""
-        <div style='text-align: center; padding: 2rem;'>
-            <h4>🌟 Features</h4>
-            <div style='display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;'>
-                <div>🤖 AI-Powered Generation</div>
-                <div>🎤 Voice Recognition</div>
-                <div>📸 Image Analysis</div>
-                <div>🖼️ Auto Image Generation (for text/voice)</div>
-                <div>📥 Download Recipes</div>
-            </div>
-            <br>
-            <p style='color: #666; margin-top: 2rem;'>Made with ❤️ using Streamlit & AI</p>
-        </div>
-        """, unsafe_allow_html=True)
+                    st.warning("No content to download.")           

@@ -7,11 +7,7 @@ import os
 from agno.agent import Agent
 from agno.models.google import Gemini
 from agno.models.groq import Groq
-from user_profile_streamlit import render_profile_section, get_user_allergies
-# st.title("Food Allergy Agent")
 
-# Render profile section and get user allergies
-# user_allergies = render_profile_section()
 
 load_dotenv()
 configure_gemini()
@@ -37,28 +33,10 @@ text_extractor = Agent(
         "- 'contains': Array of explicit allergen warnings\n"
         "Be thorough and precise - the output will be used for allergy analysis." 
     ),
-    debug_mode=True,
+    debug_mode=False,
 )
 
-# resp = text_extractor.run("the image path is: assests/roasted.png").content
-# print("Extracted Ingredients:", resp)
 
-# ---------------- Risk Scoring ----------------
-# allergy_list = user_allergies if user_allergies else ["nuts", "gluten", "milk"]
-
-# risk_scoring = Agent(
-#     model=Gemini(id="gemini-2.0-flash", api_key=os.getenv("GEMINI_API_KEY"),temperature=0.1),
-#     description="Food allergy risk scoring agent",
-#     instructions=(
-#         f"You are a food risk scoring agent. The user has the following known allergies: {allergy_list}. "
-#         "Your task is to: \n"
-#         "1. Compare the extracted ingredients with the allergy list.\n"
-#         "2. If any allergens are found, mark them clearly.\n"
-#         "3. Provide a 'Risk Score' between 0 and 1 (0 = no risk, 1 = severe risk).\n"
-#         "4. Return output in JSON format with the keys: `allergens_found`, `risk_score`, `explanation`."
-#     ),
-# )
-        # f"You are a food risk scoring agent. The user has the following known allergies: {allergy_list}. "
 
 
 risk_scoring = Agent(
@@ -79,9 +57,6 @@ risk_scoring = Agent(
         "6. Return output strictly in JSON format with keys: `allergens_found`, `risk_score`, `explanation`."
     ),
 )
-
-# resp = risk_scoring.run(resp).content
-# print("Risk Scoring:", resp)
 
 # ---------------- Risk-Free Alternatives ----------------
 risk_alternate = Agent(
@@ -121,11 +96,3 @@ risk_alternate = Agent(
         
     ),
 )
-
-# resp = risk_alternate.run(resp).content
-# print("Risk Scoring alternative:", resp)
-
-        # "Every suggested product MUST be free of ALL user allergens\n"
-        # "You will receive a JSON object that contains `allergens_found` and `risk_score`. "
-        # "Suggest at least 3 alternative food products that avoid the allergens found. "
-        # "Do NOT suggest products containing ANY form of the user's allergens\n"
