@@ -5,8 +5,10 @@ from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv()
 import os
+import streamlit as st
+google_api_key=st.secrets["GOOGLE_API_KEY"]
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+client = genai.Client(api_key=google_api_key)
 def recipe_image(contents):
 
   response = client.models.generate_content(

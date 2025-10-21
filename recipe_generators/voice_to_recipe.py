@@ -2,8 +2,10 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 from google import genai
+import streamlit as st
+google_api_key=st.secrets["GOOGLE_API_KEY"]
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+client = genai.Client(api_key=google_api_key)
 
 
 def voice_to_recipe(filename):

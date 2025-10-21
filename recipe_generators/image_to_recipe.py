@@ -3,14 +3,15 @@ from dotenv import load_dotenv
 load_dotenv()
 import base64
 import os
-
+import streamlit as st
+groq_api_key=st.secrets["GROQ_API_KEY"]
 
 def encode_image(uploaded_file):
     file_bytes = uploaded_file.read()  # read directly from UploadedFile
     return base64.b64encode(file_bytes).decode("utf-8")
 
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+client = Groq(api_key=groq_api_key)
 
 def pic_to_recipe(base64_image):
 

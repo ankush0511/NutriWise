@@ -2,13 +2,15 @@ import google.generativeai as genai
 from PIL import Image
 from dotenv import load_dotenv
 import os
+import streamlit as st
 
 load_dotenv()
 
 def configure_gemini():
     """Configure the Gemini API with the API key."""
     try:
-        GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        # GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        GOOGLE_API_KEY=st.secrets["GOOGLE_API_KEY"]
         if not GOOGLE_API_KEY:
             raise KeyError("GOOGLE_API_KEY environment variable not set.")
         genai.configure(api_key=GOOGLE_API_KEY)

@@ -4,9 +4,11 @@ from recipe_generators.image_generation import recipe_image,show_image
 import os
 import json
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
+api_key = st.secrets["GOOGLE_API_KEY"]
+# api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
     raise ValueError("❌ GOOGLE_API_KEY not found in .env file")
 

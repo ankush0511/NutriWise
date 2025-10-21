@@ -8,12 +8,16 @@ from agno.tools.reasoning import ReasoningTools
 import os
 from dotenv import load_dotenv
 load_dotenv() 
+import streamlit as st
+google_api_key=st.secrets["GOOGLE_API_KEY"]
+exa_api_key=st.secrets["EXA_API_KEY"]
 
-# agentops.init(api_key=os.getenv("AGENTOPS_API_KEY"))
+# google_api_key=os.getenv("GOOGLE_API_KEY")
+# exa_api_key=os.getenv("EXA_API_KEY")
 
 nutrient_agent = Agent(
-    model=Gemini(api_key=os.getenv("GOOGLE_API_KEY")),
-    tool_call_limit=[DuckDuckGoTools(), BaiduSearchTools(), ExaTools(api_key=os.getenv("EXA_API_KEY")), ReasoningTools(add_instructions=True)],
+    model=Gemini(api_key=google_api_key),
+    tool_call_limit=[DuckDuckGoTools(), BaiduSearchTools(), ExaTools(api_key=exa_api_key), ReasoningTools(add_instructions=True)],
     instructions="""
     You are a Nutrition Data Specialist AI with access to a comprehensive web search abilities.
 

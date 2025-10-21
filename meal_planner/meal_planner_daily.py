@@ -1,13 +1,14 @@
 import time
 from agno.agent import Agent
-from agno.models.google import Gemini
 from agno.models.groq import Groq
-from agno.tools.reasoning import ReasoningTools
 import os
 from pydantic import BaseModel, Field
 from typing import List
 from dotenv import load_dotenv
+import streamlit as st
 load_dotenv()
+
+groq_api_key=st.secrets["GROQ_API_KEY"]
 
 class Nutrients(BaseModel):
     calories: float = Field(..., description="Calories in kcal")

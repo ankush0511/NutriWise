@@ -1,4 +1,5 @@
 import streamlit as st
+import patch_sqlite
 from pydantic import BaseModel, ValidationError
 from typing import List, Optional
 import json

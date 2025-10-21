@@ -7,6 +7,8 @@ import os
 from agno.agent import Agent
 from agno.models.google import Gemini
 from agno.models.groq import Groq
+groq_api_key=st.secrets["GROQ_API_KEY"]
+google_api_key=st.secrets["GOOGLE_API_KEY"]
 
 
 load_dotenv()
@@ -17,7 +19,7 @@ class IngredientList(BaseModel):
     ingredients: List[str] = Field(description="List of extracted ingredients from the image")
 
 text_extractor = Agent(
-    model=Groq(id="llama-3.3-70b-versatile", api_key=os.getenv("GROQ_API_KEY"),temperature=0.1),
+    model=Groq(id="llama-3.3-70b-versatile", api_key=groq_api_key,temperature=0.1),
 
     description="Ingredient extraction agent",
     instructions=(
@@ -40,7 +42,7 @@ text_extractor = Agent(
 
 
 risk_scoring = Agent(
-    model=Gemini(id="gemini-2.0-flash", api_key=os.getenv("GEMINI_API_KEY"), temperature=0.1),
+    model=Gemini(id="gemini-2.0-flash", api_key=google_api_key, temperature=0.1),
     description="Food allergy risk scoring agent",
     instructions=(
         "you will get the ingredent and the user allergy list,it conain the user allergy item"
@@ -60,7 +62,7 @@ risk_scoring = Agent(
 
 # ---------------- Risk-Free Alternatives ----------------
 risk_alternate = Agent(
-    model=Gemini(id="gemini-2.0-flash", api_key=os.getenv("GEMINI_API_KEY"),temperature=0.1),
+    model=Gemini(id="gemini-2.0-flash", api_key=google_api_key,temperature=0.1),
     description="You are an expert nutritionist and food safety specialist with deep knowledge of allergen-free products, ingredient substitutions, and healthy alternatives.",
     instructions=(
       """
