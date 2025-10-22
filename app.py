@@ -880,7 +880,7 @@ if __name__ == "__main__":
                             
                             # Step 4: Get alternatives (only if risk score >= 1)
                             alternatives_resp = None
-                            if risk_score_float >= 1.0:
+                            if risk_score_float >= 0.2:
                                 status.write("🔍 Finding healthier alternatives...")
                                 st.session_state.processing_step = "Finding alternatives"
                                 
@@ -915,7 +915,7 @@ if __name__ == "__main__":
                     except (ValueError, TypeError):
                         risk_score_float = 0
                     
-                    if risk_score_float >= 1.0:
+                    if risk_score_float >= 0.2:
                         if hasattr(alternatives_resp, 'content') and alternatives_resp.content:
                             alternatives_text = alternatives_resp.content.replace('```json', '').replace('```', '').strip()
                             
