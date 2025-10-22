@@ -1,6 +1,3 @@
-Here’s the **best combined and polished README** for your **NutriWise** GitHub repo — it merges the strong structure, clarity, and technical accuracy of both drafts while making it visually appealing and professional (suitable for recruiters, contributors, and users alike):
-
----
 
 # 🥗 NutriWise – AI-Powered Nutrition & Recipe Assistant
 **NutriWise** is a cutting-edge **AI-powered nutrition and recipe management platform** that helps users eat smarter and live healthier.
